@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Manager Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="bg-gray-100 p-8" x-data="app()">
+
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">SaaS Subscription Manager Demo</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Create Plan -->
+            <div class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-lg shadow-md mb-8 sticky top-8">
+                    <h2 class="text-xl font-semibold mb-4">Create New Plan</h2>
+                    <form @submit.prevent="createPlan" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" x-model="form.name"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Slug</label>
+                            <input type="text" x-model="form.slug"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Price (cents)</label>
+                            <input type="number" x-model="form.price"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                                required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Currency</label>
+                                <select x-model="form.currency"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="PKR">PKR</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Interval</label>
+                                <select x-model="form.interval"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
+                                    <option value="month">Monthly</option>
+                                    <option value="year">Yearly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea x-model="form.description"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"></textarea>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 w-full"
+                                :disabled="loading">
+                                <span x-show="!loading">Create Plan</span>
+                                <span x-show="loading">Creating...</span>
+                            </button>
+                        </div>
+                        <div x-show="message" class="mt-2 text-sm text-green-600" x-text="message"></div>
+                        <div x-show="error" class="mt-2 text-sm text-red-600" x-text="error"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Plans & Subscriptions -->
+            <div class="lg:col-span-2 space-y-8">
+
+                <!-- Active Subscriptions -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-indigo-700">My Subscriptions</h2>
+                        <button @click="fetchSubscriptions"
+                            class="text-indigo-600 hover:text-indigo-800 text-sm">Refresh</button>
+                    </div>
+
+                    <div x-show="subscriptions.length === 0"
+                        class="text-gray-500 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        You have no active subscriptions. Subscribe to a plan below!
+                    </div>
+
+                    <div class="space-y-4">
+                        <template x-for="sub in subscriptions" :key="sub.id">
+                            <div
+                                class="border border-indigo-100 bg-indigo-50 rounded-lg p-4 flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-bold text-indigo-900" x-text="sub.plan.name"></h3>
+                                    <div class="text-sm text-indigo-700">
+                                        Status: <span class="font-semibold uppercase" x-text="sub.status"></span>
+                                    </div>
+                                    <div class="text-xs text-indigo-500 mt-1">
+                                        Expires: <span x-text="new Date(sub.ends_at).toLocaleDateString()"></span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="block text-xl font-bold text-indigo-900"
+                                        x-text="(sub.plan.price / 100).toFixed(2) + ' ' + sub.plan.currency"></span>
+                                    <span class="text-xs text-indigo-500" x-text="'per ' + sub.plan.interval"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Available Plans -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">Available Plans</h2>
+                        <button @click="fetchPlans"
+                            class="text-indigo-600 hover:text-indigo-800 text-sm">Refresh</button>
+                    </div>
+
+                    <div x-show="plans.length === 0" class="text-gray-500 text-center py-4">
+                        No plans found. Create one!
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <template x-for="plan in plans" :key="plan.id">
+                            <div
+                                class="border rounded-lg p-4 hover:shadow-lg transition flex flex-col justify-between h-full">
+                                <div>
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-bold text-lg" x-text="plan.name"></h3>
+                                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"
+                                            x-text="plan.interval"></span>
+                                    </div>
+                                    <p class="text-gray-600 text-sm mt-1" x-text="plan.description"></p>
+                                    <div class="mt-4 flex items-baseline">
+                                        <span class="text-2xl font-bold" x-text="(plan.price / 100).toFixed(2)"></span>
+                                        <span class="ml-1 text-gray-500" x-text="plan.currency"></span>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-4 border-t">
+                                    <button @click="subscribe(plan.id)"
+                                        class="w-full bg-gray-800 text-white py-2 rounded hover:bg-gray-900 transition">
+                                        Subscribe Now
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                plans: [],
+                subscriptions: [],
+                loading: false,
+                message: '',
+                error: '',
+                form: {
+                    name: '',
+                    slug: '',
+                    price: 1000,
+                    currency: 'USD',
+                    interval: 'month',
+                    description: '',
+                    features: []
+                },
+                init() {
+                    this.fetchPlans();
+                    this.fetchSubscriptions();
+                },
+                async fetchPlans() {
+                    try {
+                        const response = await fetch('/api/plans');
+                        const data = await response.json();
+                        this.plans = data.data;
+                    } catch (e) {
+                        console.error('Error fetching plans:', e);
+                    }
+                },
+                async fetchSubscriptions() {
+                    try {
+                        const response = await fetch('/api/subscriptions');
+                        const data = await response.json();
+                        this.subscriptions = data.data;
+                    } catch (e) {
+                        console.error('Error fetching subscriptions:', e);
+                    }
+                },
+                async createPlan() {
+                    this.loading = true;
+                    this.message = '';
+                    this.error = '';
+
+                    try {
+                        const response = await fetch('/api/plans', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Failed to create plan');
+                        }
+
+                        this.message = 'Plan created successfully!';
+                        this.form.name = '';
+                        this.form.slug = '';
+                        this.form.description = '';
+                        this.fetchPlans();
+
+                        setTimeout(() => this.message = '', 3000);
+
+                    } catch (e) {
+                        this.error = e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async subscribe(planId) {
+                    if (!confirm('Are you sure you want to subscribe to this plan?')) return;
+
+                    try {
+                        const response = await fetch('/api/subscriptions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ plan_id: planId })
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Failed to subscribe');
+                        }
+
+                        alert('Successfully subscribed!');
+                        this.fetchSubscriptions();
+
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

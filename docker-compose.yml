@@ -1,0 +1,59 @@
+services:
+    pgsql:
+        image: 'postgres:15'
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGDATA: /var/lib/postgresql/data/pgdata
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD}'
+        volumes:
+            - 'saas_manager_pgsql:/var/lib/postgresql/data'
+        networks:
+            - saas_manager_network
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - '-q'
+                - '-d'
+                - '${DB_DATABASE}'
+                - '-U'
+                - '${DB_USERNAME}'
+            retries: 3
+            timeout: 5s
+
+    redis:
+        image: 'redis:alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'saas_manager_redis:/data'
+        networks:
+            - saas_manager_network
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+
+    mailpit:
+        image: 'axllent/mailpit:latest'
+        ports:
+            - '${FORWARD_MAIL_PORT:-1025}:1025'
+            - '${FORWARD_MAIL_DASHBOARD_PORT:-8025}:8025'
+        networks:
+            - saas_manager_network
+
+networks:
+    saas_manager_network:
+        driver: bridge
+
+volumes:
+    saas_manager_pgsql:
+        driver: local
+    saas_manager_redis:
+        driver: local
